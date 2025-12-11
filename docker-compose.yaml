@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: news-site-db
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=mydb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    # Явно указываем, что это часть compose-проекта
+    labels:
+      - "com.docker.compose.project=untitled"
+      - "com.docker.compose.service=db"
+
+  web:
+    build: .
+    container_name: news-site-app
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/mydb?schema=public
+      - NODE_ENV=production
+    depends_on:
+      db:
+        condition: service_healthy
+        required: true
+    networks:
+      - app_network
+    restart: unless-stopped
+    # Явно указываем, что это часть compose-проекта
+    labels:
+      - "com.docker.compose.project=untitled"
+      - "com.docker.compose.service=web"
+
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
